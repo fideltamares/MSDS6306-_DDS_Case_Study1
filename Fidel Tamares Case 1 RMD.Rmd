@@ -1,0 +1,357 @@
+---
+title: "Fidel DDS Case Study 1"
+author: "Fidel"
+date: "6/16/2021"
+output: html_document
+---
+
+intro
+Good afternoon, Mr. Doukeris and Mr. Tennenbaum. I have completed the exploratory data analysis on the data sets you provided and have some findings that can help with making business decisions. BLUF is even though the market may seem saturated at first glance,on a per capita basis, only 2 stats have 1 or more breweries per 100,000 citizens. CO, CA and MI have 24.88% of the total breweries with their borders. The low brewery per 100,000 citizens and further investigation of states with many different beer styles suggests most states are dominated by a few multi-style breweries. The data provided also suggests for most states there is a positive correlation for IBUs as ABV increases, showing a trend moving towards bigger bodied beers. This will mean costs to produce beers will go up as hops and fermentable sugar generation can only increase with increased amounts for the same amount of beer volume. A plus is that a breakdown of serving sizes show that 12oz is the most popular size, which is smaller than the standard 16oz pint glass. This suggests more there are more can sales vs onsight consumption which could help mitigate increased production costs.IPAs are some of the most costly beers to produce and are the most popular, second being other ales. With the data provided we have created a model that is 87% in classifying if beers are IPAs vs ales using IBU and ABV data. Our recommendation is to establish a presence in a higher population growth state (4%+), such as NV or ID or a large state that has moderate growth (2%+ with 20mil+ pop) like Texas or Florida. Next to consider competition, our analysis shows its not the number of breweries but the number of styles that a brewery produces to be the biggest threat. We recommend a similar strategy but starting with the most popular styles and to can the beers.This is more of a volume and velocity play and also enables you to operate across states borders, making location less critical to success.
+
+Code Chunk 1
+Below we are loading the necessary packages and importing CSV files containing the data sets used to conduct the EDA. The datasets used are beer.CSV, Breweries.CSV and USPop2019OnlyStates3yrGrowth (additional dataset on state populations for 2019 and 3 year growth rate). The X2019Pop column of USPop2019OnlyStates3yrGrowth had the commas removed and classes changed to numeric.
+```{r}
+library(knitr)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(maps)
+library(stringr)
+library(e1071)
+library(class)
+library(caret)
+library(mapdata)
+
+#importing CVS Files
+beers = read.csv(file.choose(),header = TRUE)
+breweries = read.csv(file.choose(),header = TRUE)
+USPop2019OnlyStates3yrGrowth = read.csv(file.choose(),header= TRUE)
+USPop2019OnlyStates3yrGrowth$X2019pop <- as.numeric((gsub(",","",USPop2019OnlyStates3yrGrowth$X2019pop)))
+```
+
+
+Code Chunk 2: The following code is used answer question 1: "How many breweries are present in each state?". The data is graphed on a bar chart and provided in a table. This allows us to verify the data visually with what is in the dataset. We also tidy up our statecount dataframe by removing white space in the $State column with the trimws function.
+
+```{r}
+breweries %>% ggplot(aes(y=reorder(State, State, length), fill = State)) + geom_bar() + ggtitle("Breweries per State") + labs(y="States", x="Number of Breweries")
+#verify that chart matches the data
+table(breweries$State)
+
+#tallying up breweries and finding the average of each state
+statecount<- breweries %>% group_by(State) %>% tally
+statecount$State <- trimws(statecount$State, which = c("left"))
+summary(statecount$n) #10.9 breweries per state
+```
+
+#Code Chunk 3: We now will merge the beer and breweries CSV files to better analyze the data. We will join the 2 datasets with the "Brew_ID" in the brewery.CSV and "brewery_ID" in the beer.CSV. Before we can merge them we will have to rename the "Brew_ID" to "brewery_ID" in the brewery.CSV in order to use it as a key column to merge the two datasets. After merging the data set we tidy the State colum of the completebrewerylist dataframe by removing whitespace with trimws.This answers the first part to question #2. We also create a stateinfo dataframe and rename the columns to match our completebrewerylist dataframe and merge it with the completebrewerylist to create a new dataframe, completebrewerylist1.
+
+```{r}
+#changing columns with the shared data I need with names names to match in each data frame
+colnames(breweries)[colnames(breweries)=="Brew_ID"] <- "Brewery_id"
+completebrewerylist <- merge(beers, breweries, by = "Brewery_id")
+
+#stripping left space
+completebrewerylist$State <- trimws(completebrewerylist$State, which = c("left"))
+
+#adding additional columns to add fidelity to locality analysis
+stateinfo = data.frame(state.abb, tolower(state.name), state.region, state.division)
+
+#updating column names to prep for merging
+
+names(stateinfo)[1] = "State"
+names(stateinfo)[2] = "State_Name"
+names(stateinfo)[3] = "Region"
+names(stateinfo)[4] = "Division"
+
+#combining with completebrewerylist
+completebrewerylist1 = merge(completebrewerylist, stateinfo, by= "State", all.x=TRUE)
+```
+
+#Code Chunk 4: Before answering the last portion of question 2, We use the head() and tail() functions to call the first and last 6 entries of the dataframe. This satisfies the last portion of question #2. At this step we also merge the data from the USPop2019OnlyStates3yrGrowth.CSV with the new dataframe (completebrewerylist1) by the "state" column to create a new dataframe; completebrewerylist2.
+
+```{r}
+headlist <- completebrewerylist1 %>% head()
+headlist
+
+taillist <- completebrewerylist1 %>% tail()
+taillist
+
+#adding state population and 3 yr growth
+
+completebrewerylist2 = merge(completebrewerylist1, USPop2019OnlyStates3yrGrowth, by="State", all=TRUE)
+```
+
+
+#Code Chunk 5: After completing the new data frame by merging all the necessary datasets, we check for missing data and address them for question #3. We search for missing entries in the completebrewerylist2 dataframe using colSum(is.na). In our Analysis we decided to omit any entry that does not have all columns filled. We choose this strategy becuase there were too many missing entries to manually fill and using a value like average IBU or ABV will affect our later analysis when using a Knn predictive model to classify beers based on IBU and ABV. We felt that using the values provided by breweries was a better representation of each style becuase not only are beer styles dicated by beer guidelines, they are also help breweries differentiate their product from other breweries; using an average may have an impact when determing customer preferences.This answers question
+
+```{r}
+#3 Address the missing values in each column.
+
+#Checking for missing values
+colSums(is.na(completebrewerylist2))
+
+# option 1 omitting NA
+#na.omit() used
+
+#option 2 replacing NA values to average of IBU 
+#average IBU for IPA Is: 71.82 (See question 8)
+#average IBU for Ale is: 34.59 (See question 8)
+
+```
+
+
+
+#Code Chunk 6: Question 4 asks to compute the median ABV and IBU for each state and to plot a bar charter to compare. We complete this by plotting ussing ggplot package. It is here where we use the na.omit() function to remove entries with missing data. We run a summary for the ABV and IBU in the data frame to verify our visual chart to the data.
+
+```{r}
+#4 Compute the median alcohol content and international bitterness unit for each state.
+# Plot a bar chart to compare.
+
+#switch to region vs division, chart was too busy with 9 colors
+completebrewerylist2 %>%
+  na.omit() %>%
+  ggplot(aes(x = State, y = ABV, fill= Region)) +
+  geom_bar(stat="summary", fun="median") +
+  ggtitle("Median ABV by State") +
+  labs(x="State",y="ABV")
+
+#Numeric details
+summary(completebrewerylist2$ABV) #Overall ABV Median is .056
+
+completebrewerylist2 %>%
+  na.omit() %>%
+  ggplot(aes(x = State, y = IBU, fill= Region)) +
+  geom_bar(stat="summary", fun="median") +
+  ggtitle("Median IBU by State") +
+  labs(x="State",y="IBU")
+
+#Numeric details
+summary(completebrewerylist2$IBU) #Overall IBU Median is 35
+```
+
+#Code Chunk 7: We use the which.max function on the completebtrwerlist2 dataframe to determine which brewery (and in which state) has the highest ABV and most IBUs.
+
+```{r}
+#5 Which state has the maximum alcoholic (ABV) beer? 
+# Which state has the most bitter (IBU) beer?
+
+completebrewerylist2[which.max(completebrewerylist2$ABV),]
+#CO, Upslope Brewing at 12.8%, Belgian Style Quad
+
+completebrewerylist2[which.max(completebrewerylist2$IBU),]
+#OR, Astoria Brewing at 138 IBU, American Double/ Imperial IPA
+
+```
+
+#Code Chunk 8: To answer question #6 we run a summary of the completebrewerylist1$ABV to get statistical summary. We then plot the dataframe based on ABV on a histogram to visualize the distribution of the beers by ABV levels. We overlay a density line to help better see how beers are distrubuted based on ABV.
+
+```{r}
+#6 Comment on the summary statistics and distribution of the ABV variable
+summary(completebrewerylist1$ABV)
+ggplot(data=completebrewerylist1,aes(x=ABV)) + 
+  geom_histogram(aes(y=..density..), colour="black", fill="white") + 
+  geom_density(colour="red", size=1) +
+  labs(title="ABV Distribution")
+```
+#Code Chunk 9: We used scatter plots of beers based on ABV, IBU and region. There are moderate to high correlation between increase IBUs and ABV increased in all regions. We used geom_smooth(method=lm) to create a regression line. We then used a facet wrap to show all 4 regions at the same time. This was used to answer question #7
+```{r}
+#7 Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.
+#Make your best judgment of a relationship and EXPLAIN your answer.
+completebrewerylist2 %>% 
+  na.omit() %>%
+  ggplot(aes(x=ABV,y=IBU, color = Region)) +
+  geom_point() +
+  geom_smooth(method=lm) +
+  facet_wrap(~Region) +
+  ggtitle("Relationship between bitterness and alcohol content") +
+  labs(y="IBU",x="ABV")
+```
+
+#Code Chunk 10: we used a KNN model to help investigate the differrence with respect to IBU and ABV between IPAs and ales. We first created dataframes for all ales and IPAs. The GREPL function was used with text analytical tools like \b (to help increase accuracy in identifying the 2 different beer styles). We then created a KNN model and trained it with the data provided to determine how accurate we could identify if a beer was an ale or IPA based on its IBUs and ABV. With the model created we are able to identify a beers correct style 86% of the time. This shows significant IBUs and ABV are to determine and creating new beers.
+
+```{r}
+#8 Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and
+# other types of Ale (any beer with "Ale" in its name other than IPA).
+# You decide to use KNN classification to investigate this relationship.
+# Provide statistical evidence one way or the other.
+# You can of course assume your audience is comfortable with percentages . KNN is very easy to understand conceptually. 
+
+
+beeripa1 <- completebrewerylist2 %>%
+  filter(grepl("\\bIPA\\b",Style,ignore.case = TRUE ))
+
+
+beerale1 <- completebrewerylist2 %>%
+  filter(grepl("\\bAle\\b",Style,ignore.case = TRUE ))
+
+
+beeripabeeripa1 <- completebrewerylist2 %>% 
+  select("ABV","IBU","Style")
+  
+  beerale2 <- beerale1 %>% select("ABV","IBU","Style") %>% na.omit()
+summary(beerale2)
+
+beeripa2 <- beeripa1 %>% select("ABV","IBU","Style") %>% na.omit()
+summary(beeripa2)
+
+beeripaale1 <- rbind(beeripa1, beerale1)
+
+beeripaaleknn1 <- beeripaale1[c(5,6,7)] %>% na.omit()
+
+#add column to determine to classify as IPA or Ale (based on style)
+beeripaaleknn1$ipaale = as.factor(ifelse(grepl('\\bIPA\\b', beeripaaleknn1$Style,ignore.case = TRUE),'IPA','Ale'))
+
+#observation check
+dim(beeripaale1[1])
+
+splitperc = .7
+
+beerindices1 = sample(1:dim(beeripaaleknn1)[1], round(splitperc*dim(beeripaaleknn1)[1]))
+
+beertrain1 = beeripaaleknn1[beerindices1,]
+beertest1 =  beeripaaleknn1[-beerindices1,]
+
+beerclass1 = knn(beertrain1[c(1,2)], beertest1[c(1,2)], beertrain1$ipaale, prob = TRUE, k = 3)
+table(beerclass1, beertest1$ipaale) 
+confusionMatrix(table(beerclass1, beertest1$ipaale))
+
+#82.8 % Accuracy to classify beers by IBU and ABV
+
+```
+
+
+
+#Additional EDA 
+#Code Chunk 11: We created a line of code that could be modified to find the top 6 of specific chracteristics. We used the aggregate function to show the relationship between 2 columns, such as states and counting the number of beers from them or breweries with the most beer styles for sale. We ussed the head function set to go in decreasing order to help make lists of top competitors and highly competitive states and cities.
+```{r}
+topstyle1 = aggregate(completebrewerylist2$Style,by=list(completebrewerylist2$Style),length)
+head(topstyle1[order(topstyle1$x,decreasing = TRUE),],5)
+
+#TOP 5 breweries with most styles
+completebrewerylist3 = aggregate(completebrewerylist2$Name.y,by=list(completebrewerylist2$Name.y),length)
+head(completebrewerylist3[order(completebrewerylist3$x,decreasing = TRUE),],5)
+
+#top 5 states with the most beer styles
+completebrewerylist4 = aggregate(completebrewerylist2$Name.y,by=list(completebrewerylist2$Name.y),length)
+head(completebrewerylist4[order(completebrewerylist3$x,decreasing = TRUE),],5)
+
+#top 5 State with the most beer styles
+statebeers1 = aggregate(completebrewerylist2$State,by=list(completebrewerylist2$State),length)
+head(statebeers1[order(statebeers1$x,decreasing = TRUE),],5)
+```
+
+#code Chunk 12: We used aggregate and ggplot to display relationships between ABV and beer volume (Serving size) as well as beer serving size to region. We used ggplot to graph the data and we spread datapoints using geom_jitter to better show the magnitude of data per seving size.
+```{r}
+#ABV v  Volume
+
+abvvolume1 = aggregate(completebrewerylist2$Ounces,by=list(completebrewerylist2$Ounces),length)
+head(abvvolume1[order(abvvolume1$x,decreasing = TRUE),],5)
+#CHART 1
+completebrewerylist2 %>%
+  na.omit() %>%
+  ggplot(aes(x = Ounces, y = ABV, color= Region)) +
+  geom_jitter(width=1) +
+  ggtitle("ABV vs Volume") +
+  labs(x="Ounces",y="ABV")
+
+#CHART 2 sizes by regions
+completebrewerylist2 %>%
+  na.omit() %>%
+  count(Ounces = factor(Ounces), Region=factor(Region)) %>%
+  mutate(abvbysize = prop.table(n)) %>%
+  ggplot(aes(x = Ounces, y=abvbysize, fill = Region, label = scales::percent(abvbysize))) +
+  geom_col(position="dodge") +
+  geom_text(position=position_dodge(width=.9), vjust = -.5, size=3) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy=1L)) +
+  ggtitle("Beer Sizes by Region") +
+  labs(x="Ounces",y="Total % of Market")
+
+```
+
+#code Chunk 13: Here we showed which states contained what percentage of the breweries listed in the brewery data set.
+```{r}
+# Breweries by state (% overall)
+
+ggplot(completebrewerylist2,aes(x=reorder(State,State,length),fill = State)) + geom_bar(stat = "count") + coord_flip() + 
+  geom_text(aes(label = scales::percent((..count..)/sum(..count..))),stat = "count",position = "stack",vjust= .5,hjust=-0.1, size=3) +
+  labs(x="State",y="% of total Breweries", title="Breweries per State")
+
+```
+
+
+#Code Chunk 14: We used a map of the US to provide another view of which states contained what percentage of the breweries in the dataset.
+
+```{r}
+#renames columns for heatmap prep     
+statecount1 = aggregate(completebrewerylist2$State,by=list(completebrewerylist2$State),length)
+colnames(statecount1) = c("region","count")
+statecount1$region = tolower(state.name[match(trimws(as.character(statecount1$region)),state.abb)])
+
+states_map = map_data("state")
+
+
+ggplot(statecount1, aes(map_id = region))+
+  geom_map(aes(fill = count), color="black", map = states_map) +
+  expand_limits(x = states_map$long, y = states_map$lat) +
+  scale_fill_gradient(high = "red", low = "yellow", guide = "colorbar") +
+  labs(title="Number of Breweries In Each State") 
+
+```
+
+#Code Chunk 15: We brought in an additional dataset to help with our EDA. We imported (from kaggle) the population of each state (2019) and its overall growth for 3 years to identify the breweries per capita and which states showed an growing population. We first had to tidy the data and adjust column classes to the correct class. We removed commas in the population column using gsub to convert CHAR to NUMERIC without it replacing all values with NA. We renamed the columns so that we could merge our new  population dataset with statecount (state info) dataset. We merged teh data sets with all pertinent data and lat/long of each state to graphically display on a map. We created a new column call "BP100K" which represents the breweries per 100k populatiion in a state. Once the dataset was complete we used it to create a barchart of states based on population and another chart based on breweries per 100k population. We then arranged the charts so that we could make two sided graph that shows population (market size) on the left and breweries per 100k (market saturation) on the right. We cleaned up the graphics in power point to better fit the presentation.
+
+```{r}
+# States by Population  
+#calculating breweries per capita
+
+
+#change first character from numberic to char
+USPop2019OnlyStates3yrGrowth1 <- USPop2019OnlyStates3yrGrowth
+names(USPop2019OnlyStates3yrGrowth1)[1] = "sabb"
+names(USPop2019OnlyStates3yrGrowth1)[2] = "pop2019"
+names(USPop2019OnlyStates3yrGrowth1)[3] = "g2019"
+
+#updating dataset to include per capita
+
+statecount2 <- statecount
+names(statecount2)[1] = "State"
+statecount3 = merge(statecount2, stateinfo, by= "State", all.x=TRUE)
+statecount4 = merge(statecount3, USPop2019OnlyStates3yrGrowth, by="State", all.x=TRUE)
+
+statecount5 = statecount4
+statecount5$X2019pop <- as.numeric((gsub(",","",statecount5$X2019pop)))
+
+#population by state
+USPop2019OnlyStates3yrGrowth1 %>%
+  na.omit() %>%
+  ggplot(aes(x=reorder(sabb,pop2019), y=pop2019, fill = sabb)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  ggtitle("Population by State") +
+  labs(x="Population", y="State", colour="States") +
+  theme(legend.title=element_blank())
+
+statecount5["BP100K"] = round(((statecount5["n"]/statecount5["X2019pop"]) * 100000), digits = 1)
+
+#adjusting variable names
+USPop2019OnlyStates3yrGrowth2 <- USPop2019OnlyStates3yrGrowth
+USPop2019OnlyStates3yrGrowth3 = merge(USPop2019OnlyStates3yrGrowth2, statecount5, by="State", all.x=TRUE)
+names(USPop2019OnlyStates3yrGrowth3)[1] = "sabb"
+names(USPop2019OnlyStates3yrGrowth3)[2] = "pop2019"
+names(USPop2019OnlyStates3yrGrowth3)[3] = "g2019"
+
+USPop2019OnlyStates3yrGrowth3 %>% slice(-8)
+USPop2019OnlyStates3yrGrowth3$pop2019 <- as.numeric((gsub(",","",USPop2019OnlyStates3yrGrowth3$pop2019)))
+
+#Plotting brewers per capita (100k)
+USPop2019OnlyStates3yrGrowth3 %>%
+  select (BP100K, sabb) %>%
+  ggplot(aes(x=reorder(sabb, BP100K), y=BP100K, fill = sabb)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label=BP100K), position=position_stack(vjust=0.5), size=3) +
+  coord_flip() +
+  ggtitle("Breweries per 100k") +
+  labs(x="State", y="Breweries per 100k", colour="States") +
+  theme(legend.title=element_blank())
+```
+
