@@ -19,6 +19,7 @@ Assumptions:
 - 12oz beer sizes are Can and Bottle related while 16oz indicate pint glass size. We have not seen a 12oz pint glass, so our assumptions are based on experience and in-bar research
 - Imported census data for additonal analysis
 
+Supporting Analysis to the findings:
 General environment: 
 -	Our analysis was conducted on 558 breweries and 2410 beers
 -	States averaged 11 per state
