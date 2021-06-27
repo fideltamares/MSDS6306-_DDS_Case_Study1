@@ -1,5 +1,62 @@
 # MSDS6306-_DDS_Case_Study1
 
+Purpose: 
+Analyze brewery and beer data to determine useful information for the CEO and CFO of Budweiser. 
+
+Approach Taken:
+Analyze data for potential operational expansion into the craft beer segment.
+
+Findings:
+Based on the data set provided we found one state that could be considered oversaturated and highly competitive (Colorado). Our recommendation if you are planning to expand operations is to occupy a high growth and large market state such as Texas, California and Florida. A suitable strategy would be to focus can and bottle sales, but not to ignore onsight sconsumption sales. The location should focus on many styles to dominate the state and surrounding region starting with the most popular style, IPAs, followed by beers with higher than average IBU and ABV. 
+
+Assumptions:
+- Before we start had some assumptions as we conducted the analysis,
+- 1005 beers removed due to missing IBU data
+  - only removed when analyzing IBUs only
+  - Most styles are consistent with beer associate beer guidelines, very few beers acted as outliers for each style 
+- Beer sales are assumed to made within the borders of the state
+- Breweries are analyzed as independent entities, does not factor sister breweries, parent companies
+- 12oz beer sizes are Can and Bottle related while 16oz indicate pint glass size. We have not seen a 12oz pint glass, so our assumptions are based on experience and in-bar research
+- Imported census data for additonal analysis
+
+General environment: 
+-	Our analysis was conducted on 558 breweries and 2410 beers
+-	States averaged 11 per state
+-	5 states had more than 28 breweries
+-	Top 3 with most styles were Colorado, California and Minnesota
+-	We learned here most states are dominated by a few breweries with many styles
+
+Regional Preferances:
+-	Region preferences centered around mid-high range for beers (35) which trends more towards the hoppier beers such as IPAs and strong Pale Ales.
+- Highest IBU beer is made at Astoria Brewing in Oregon,  which centers around 40 IBU beers
+- Region preferences centered around moderate ABV styles (5.6%) which trends more towards the bigger beers bodied beers
+- Highest ABV beer is made at Upslope brewing in Colorado,  which centers around 6%+ ABV beers
+- Our analysis supports the reasoning for the Top 3 overall styles are IPA, Pale Ale and Amber Ale
+- Average ABV is 5.97%, slightly off from the center of the pack a 5.6%. This indicates there are higher abv beers in the top 50% than lower and a possible trend towards stronger beers.
+- Most popular size is 12oz at (64%) but amount purchased at 16oz at (36%) not an insignificant number to ignore. The way this data was interpreted was based on serving unit, the normal pint glass is 16oz and cans were 12oz, this shows more of where people consume beer. There is a stronger preference for not at the establishment of purchase, most likely at home or a group gathering. 16oz 
+- These charts show a positive relationship between ABV and IBU. As ABV moves up so does IBU
+- This is potentially showing a trend in preference for current consumers 
+- No region is in the session beer range (<5%, <40IBU)
+- South and western regions have a higher correlation and may be the most likely states to experiment with newer big bodied beers,  north west and central are no too far behind but may not grow as fast
+- This has significant impacts as these beers are typically more expensive to produce, they share a linear relationship, if you want more ABV you need more malt to create more sugar, if you want more IBU you will need more Hops.
+- This can be offset by riding beer trends to enable us to charge more per ounce for bigger beers and also making sales through distribution with the 60%+ of purchases in can/bottle form
+- The last slide it a market analysis, it shows the stats by population and breweries per 100k
+- As you can see many that would be intuitively considered oversaturated by breweries like California and Texas are actually in line with many other states. Their large growing populations offset the number of breweries. This wont last forever as breweries can open faster than 100,000 reach drinking age or move to the state.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Supporting Documents:
+
 MSDS 6306: Doing Data Science - Case Study 01
 
 Description
