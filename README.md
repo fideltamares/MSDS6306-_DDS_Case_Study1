@@ -1,4 +1,5 @@
 # MSDS6306-_DDS_Case_Study1
+Link to Youtube Video:https://www.youtube.com/watch?v=99NSs5L7vF0
 
 Purpose: 
 Analyze brewery and beer data to determine useful information for the CEO and CFO of Budweiser. 
